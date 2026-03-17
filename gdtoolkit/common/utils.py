@@ -1,5 +1,14 @@
 import os
 from typing import FrozenSet, List, Optional
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
+
+
+def get_gdtoolkit_version(package_name: str = "gdtoolkit-kimau") -> str:
+    """Return the installed package version, falling back to 'gdtoolkit' for dev installs."""
+    try:
+        return _pkg_version("gdtoolkit-kimau")
+    except PackageNotFoundError:
+        return _pkg_version("gdtoolkit")
 
 from lark import Tree, Token
 

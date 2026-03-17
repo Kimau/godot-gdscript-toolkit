@@ -5,7 +5,8 @@ and to get an intermediate representation as a Lark Tree.
 """
 import os
 import sys
-from importlib.metadata import version as pkg_version
+
+from ..common.utils import get_gdtoolkit_version as pkg_version
 
 from lark import Lark, Tree
 
@@ -70,7 +71,7 @@ class Parser:
         add_metadata: bool = False,
         grammar_filename: str = "gdscript.lark",
     ) -> Lark:
-        version: str = pkg_version("gdtoolkit")
+        version: str = pkg_version("gdtoolkit-kimau")
         cache_dirpath: str = os.path.join(self._cache_dirpath, version)
         cache_filepath: str = os.path.join(cache_dirpath, name) + ".pickle"
         grammar_filepath: str = os.path.join(self._directory, grammar_filename)

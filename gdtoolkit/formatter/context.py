@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from dataclasses import dataclass
 
 from lark import Tree
@@ -20,6 +20,7 @@ class Context:
         standalone_comments: List[Optional[str]],
         inline_comments: List[Optional[str]],
         indent: int = 0,
+        disabled_ranges: Optional[List[Tuple[int, int]]] = None,
     ):
         self.single_indent = single_indent_size
         self.single_indent_string = single_indent_string
@@ -33,6 +34,7 @@ class Context:
         self.gdscript_code_lines = gdscript_code_lines
         self.standalone_comments = standalone_comments
         self.inline_comments = inline_comments
+        self.disabled_ranges = disabled_ranges or []  # type: List[Tuple[int, int]]
         self.annotations = []  # type: List[Tree]
 
     def create_child_context(self, previously_processed_line_number: int):
@@ -45,6 +47,7 @@ class Context:
             standalone_comments=self.standalone_comments,
             inline_comments=self.inline_comments,
             indent=self.indent + self.single_indent,
+            disabled_ranges=self.disabled_ranges,
         )
 
 

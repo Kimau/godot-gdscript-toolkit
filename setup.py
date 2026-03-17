@@ -1,8 +1,32 @@
+import sys
+import subprocess
+
 from setuptools import setup
+from setuptools.command.install import install
+
+
+class PostInstallCommand(install):
+    """Uninstall vanilla gdtoolkit if present after installing this fork."""
+
+    def run(self):
+        install.run(self)
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "show", "gdtoolkit"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "uninstall", "-y", "gdtoolkit"],
+                    check=False,
+                )
+        except Exception:  # pylint: disable=broad-except
+            pass
 
 
 setup(
-    name="gdtoolkit",
+    name="gdtoolkit-kimau",
     version="4.5.1",
     description="Independent set of tools for working with GDScript - parser, linter and formatter",
     keywords=["GODOT", "GDSCRIPT", "PARSER", "LINTER", "FORMATTER"],
@@ -29,6 +53,7 @@ setup(
             "gdradon = gdtoolkit.gdradon.__main__:main",
         ]
     },
+    cmdclass={"install": PostInstallCommand},
     include_package_data=True,
     install_requires=[
         "lark[regex]==1.2.2",

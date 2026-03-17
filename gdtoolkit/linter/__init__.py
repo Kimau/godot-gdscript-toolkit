@@ -111,6 +111,10 @@ DEFAULT_CONFIG = MappingProxyType(
 )
 
 
+_GDLINT_OFF_RE = re.compile(r"#\s*gdlint\s*:?\s*off\s*$")
+_GDLINT_ON_RE = re.compile(r"#\s*gdlint\s*:?\s*on\s*$")
+
+
 def lint_code(
     gdscript_code: str, config: MappingProxyType = DEFAULT_CONFIG
 ) -> List[Problem]:
@@ -121,6 +125,10 @@ def lint_code(
     problems += class_checks.lint(parse_tree, config)
     problems += basic_checks.lint(parse_tree, config)
     problems += misc_checks.lint(parse_tree, config)
+
+    globally_disabled_lines = _fetch_globally_disabled_lines(gdscript_code)
+    if globally_disabled_lines:
+        problems = [p for p in problems if p.line not in globally_disabled_lines]
 
     problems_to_lines_where_they_are_inactive = _fetch_problem_inactivity_lines(
         gdscript_code
@@ -133,6 +141,24 @@ def lint_code(
     ]
 
     return problems
+
+
+def _fetch_globally_disabled_lines(gdscript_code: str) -> Set[int]:
+    disabled = set()  # type: Set[int]
+    lines = gdscript_code.splitlines()
+    last_line_no = len(lines)
+    off_start = None
+    for line_no, line in enumerate(lines, start=1):
+        if _GDLINT_OFF_RE.search(line):
+            if off_start is None:
+                off_start = line_no
+        elif _GDLINT_ON_RE.search(line):
+            if off_start is not None:
+                disabled.update(range(off_start, line_no + 1))
+                off_start = None
+    if off_start is not None:
+        disabled.update(range(off_start, last_line_no + 1))
+    return disabled
 
 
 def _fetch_problem_inactivity_lines(gdscript_code: str) -> Dict[str, Set[int]]:

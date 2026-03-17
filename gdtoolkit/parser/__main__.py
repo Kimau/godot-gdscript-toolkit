@@ -14,7 +14,7 @@ Options:
 """
 import sys
 from typing import Dict
-from importlib.metadata import version as pkg_version
+from gdtoolkit.common.utils import get_gdtoolkit_version as pkg_version
 
 import lark
 from docopt import docopt
@@ -29,7 +29,7 @@ from gdtoolkit.common.exceptions import (
 def main():
     arguments = docopt(
         __doc__,
-        version="gdparse {}".format(pkg_version("gdtoolkit")),
+        version="gdparse {}".format(pkg_version("gdtoolkit-kimau")),
     )
     files = arguments["<file>"]
 

@@ -20,7 +20,7 @@ import logging
 import pathlib
 from typing import List, Optional
 from types import MappingProxyType
-from importlib.metadata import version as pkg_version
+from gdtoolkit.common.utils import get_gdtoolkit_version as pkg_version
 
 import lark
 import yaml
@@ -43,7 +43,7 @@ CONFIG_FILE_NAME = "gdlintrc"
 def main():
     arguments = docopt(
         __doc__,
-        version="gdlint {}".format(pkg_version("gdtoolkit")),
+        version="gdlint {}".format(pkg_version("gdtoolkit-kimau")),
     )
 
     if arguments["--verbose"]:

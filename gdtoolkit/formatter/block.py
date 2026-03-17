@@ -1,6 +1,6 @@
 import re
 from types import MappingProxyType
-from typing import List, Callable
+from typing import List, Callable, Set
 
 from lark import Tree
 
@@ -37,8 +37,35 @@ def format_block(
     previous_statement_name = None
     formatted_lines = []  # type: FormattedLines
     previously_processed_line_number = context.previously_processed_line_number
+    injected_regions = set()  # type: Set[int]  # keyed by region start line
+
+    def inject_disabled_regions_up_to(target_line: int) -> None:
+        nonlocal previously_processed_line_number
+        for rs, re_ in context.disabled_ranges:
+            if (
+                previously_processed_line_number < rs <= target_line
+                and rs not in injected_regions
+            ):
+                for line_no in range(rs, re_ + 1):
+                    formatted_lines.append(
+                        (line_no, context.gdscript_code_lines[line_no])
+                    )
+                previously_processed_line_number = re_
+                injected_regions.add(rs)
+
+    def is_in_disabled_range(line_no: int) -> bool:
+        return any(rs <= line_no <= re_ for rs, re_ in context.disabled_ranges)
 
     for i, statement in enumerate(statements):
+        stmt_line = get_line(statement)
+
+        # Inject any disabled regions that fall before this statement
+        if context.disabled_ranges:
+            inject_disabled_regions_up_to(stmt_line)
+            # Skip statements that are inside a disabled region
+            if is_in_disabled_range(stmt_line):
+                continue
+
         # Check if this is an abstract annotation followed by an abstract function or class_name
         next_statement = statements[i + 1] if i + 1 < len(statements) else None
         is_abstract_for_statement = (
@@ -55,7 +82,7 @@ def format_block(
                 continue
 
         blank_lines = reconstruct_blank_lines_in_range(
-            previously_processed_line_number, get_line(statement), context
+            previously_processed_line_number, stmt_line, context
         )
         if previous_statement_name is None:
             blank_lines = _remove_empty_strings_from_begin(blank_lines)
@@ -92,6 +119,11 @@ def format_block(
     dedent_line_number = _find_dedent_line_number(
         previously_processed_line_number, context
     )
+
+    # Inject any disabled regions that fall inside this block but had no following statement
+    if context.disabled_ranges:
+        inject_disabled_regions_up_to(dedent_line_number - 1)
+
     formatted_lines += _remove_empty_strings_from_end(
         reconstruct_blank_lines_in_range(
             previously_processed_line_number, dedent_line_number, context

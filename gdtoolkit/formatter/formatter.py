@@ -1,5 +1,5 @@
 import re
-from typing import List, Optional
+from typing import List, Optional, Set, Tuple
 
 from lark import Tree
 
@@ -47,16 +47,31 @@ def format_code(
     single_indent_string = (
         "\t" if spaces_for_indent is None else " " * spaces_for_indent
     )
+
+    off_regions = _find_gdformat_off_regions(gdscript_code)
+    disabled_lines = _build_disabled_lines_set(off_regions)  # type: Set[int]
+
+    standalone_comments = gather_standalone_comments(gdscript_code, comment_parse_tree)
+    inline_comments = gather_inline_comments(gdscript_code, comment_parse_tree)
+    if disabled_lines:
+        standalone_comments = [
+            None if (i < len(standalone_comments) and i in disabled_lines) else v
+            for i, v in enumerate(standalone_comments)
+        ]
+        inline_comments = [
+            None if (i in disabled_lines) else v
+            for i, v in enumerate(inline_comments)
+        ]
+
     context = Context(
         single_indent_size=single_indent_size,
         single_indent_string=single_indent_string,
         previously_processed_line_number=0,
         max_line_length=max_line_length,
         gdscript_code_lines=gdscript_code_lines,
-        standalone_comments=gather_standalone_comments(
-            gdscript_code, comment_parse_tree
-        ),
-        inline_comments=gather_inline_comments(gdscript_code, comment_parse_tree),
+        standalone_comments=standalone_comments,
+        inline_comments=inline_comments,
+        disabled_ranges=off_regions,
     )
     formatted_lines, _ = format_block(
         parse_tree.children,
@@ -70,6 +85,35 @@ def format_code(
         formatted_lines, context.standalone_comments, context.indent_regex
     )
     return "\n".join([line for _, line in formatted_lines])
+
+
+_GDFORMAT_OFF_RE = re.compile(r"#\s*gdformat\s*:?\s*off\s*$")
+_GDFORMAT_ON_RE = re.compile(r"#\s*gdformat\s*:?\s*on\s*$")
+
+
+def _find_gdformat_off_regions(code: str) -> List[Tuple[int, int]]:
+    lines = code.splitlines()
+    last_line = len(lines)
+    regions = []  # type: List[Tuple[int, int]]
+    off_start = None
+    for line_no, line in enumerate(lines, start=1):
+        if _GDFORMAT_OFF_RE.search(line):
+            if off_start is None:
+                off_start = line_no
+        elif _GDFORMAT_ON_RE.search(line):
+            if off_start is not None:
+                regions.append((off_start, line_no))
+                off_start = None
+    if off_start is not None:
+        regions.append((off_start, last_line))
+    return regions
+
+
+def _build_disabled_lines_set(off_regions: List[Tuple[int, int]]) -> Set[int]:
+    disabled = set()  # type: Set[int]
+    for start, end in off_regions:
+        disabled.update(range(start, end + 1))
+    return disabled
 
 
 def _add_inline_comments(

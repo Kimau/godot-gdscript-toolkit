@@ -7,3 +7,4 @@ dist/
 /logs
 build
 .hypothesis/
+.claude
